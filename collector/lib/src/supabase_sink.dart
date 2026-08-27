@@ -29,6 +29,8 @@ class SupabaseSink {
   final http.Client _client;
 
   /// 환경변수가 둘 다 있을 때만 싱크를 만든다. 없으면 null — 로컬 전용 모드다.
+  ///
+  /// [env] 를 주면 그걸 쓴다 (`.env` 병합본). 안 주면 프로세스 환경변수.
   static SupabaseSink? fromEnvironment([Map<String, String>? env]) {
     final e = env ?? Platform.environment;
     final url = e['SUPABASE_URL'];

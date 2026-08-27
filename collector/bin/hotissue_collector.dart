@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:hotissue_collector/src/collector.dart';
+import 'package:hotissue_collector/src/dotenv.dart';
 import 'package:hotissue_collector/src/server.dart';
 import 'package:hotissue_collector/src/source.dart';
 import 'package:hotissue_collector/src/store.dart';
@@ -40,7 +41,7 @@ Future<void> main(List<String> args) async {
 
   // 환경변수가 있으면 Supabase 로도 밀어넣는다. 없으면 로컬 전용으로 돈다.
   // 배포본(Vercel)은 Supabase 만 보므로 이게 있어야 실데이터가 배포본에 흐른다.
-  final sink = SupabaseSink.fromEnvironment();
+  final sink = SupabaseSink.fromEnvironment(loadDotEnv());
   if (sink == null) {
     stdout.writeln('[수집기] Supabase 싱크 없음 (로컬 전용). '
         'SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY 를 주면 켜집니다.');
