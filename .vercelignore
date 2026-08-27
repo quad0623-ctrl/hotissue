@@ -1,0 +1,15 @@
+# 웹 빌드에 필요 없는 것들. 업로드/클론 시간을 줄인다.
+collector/
+supabase/
+test/
+env/
+.github/
+.claude/
+.vscode/
+build/
+.dart_tool/
+_flutter/
+
+# 문서
+*.md
+!README.md

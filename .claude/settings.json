@@ -9,7 +9,11 @@
       "Bash(dart test *)",
       "Bash(dart analyze *)",
       "Bash(dart format *)",
-      "Bash(curl -s * http://localhost:*)"
+      "Bash(curl -s * http://localhost:*)",
+      "Read(//c/Users/USER/Documents/WindowsPowerShell/**)",
+      "Bash(git add *)",
+      "Bash(git -c user.name=\"quad0623-ctrl\" -c user.email=\"quad06@naver.com\" commit -q -F -)",
+      "Bash(git push *)"
     ]
   }
 }

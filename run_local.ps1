@@ -16,18 +16,24 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-Location -Path $PSScriptRoot
 
-# TEMP 가 존재하지 않는 드라이브를 가리키면 Flutter/Dart 빌드가 알 수 없는 오류로 죽는다.
-# (컴파일러와 pub 가 임시 디렉터리를 많이 쓴다)
+# TEMP 가 깨져 있으면 Flutter/Dart 빌드가 알 수 없는 오류로 죽고,
+# 심하면 VS Code 통합 터미널이 기동조차 못 한다(exit -65536).
+# 컴파일러와 pub 가 임시 디렉터리를 많이 쓰기 때문이다.
+#
+# 안내 문구로 명령을 뱉지 않고 직접 고친다. 예전엔 setx 명령을 출력했는데,
+# 그 안의 $env:USERPROFILE 이 cmd 창에서는 확장되지 않아 리터럴 문자열이
+# 환경변수에 박히는 사고가 났다.
+$sane = Join-Path $env:USERPROFILE 'AppData\Local\Temp'
 foreach ($varName in @('TEMP', 'TMP')) {
-    $tempPath = [Environment]::GetEnvironmentVariable($varName)
-    if ($tempPath -and -not (Test-Path $tempPath)) {
-        Write-Host "환경변수 $varName 이 존재하지 않는 경로를 가리킵니다: $tempPath" -ForegroundColor Red
-        Write-Host '이 상태로는 Flutter 빌드가 실패합니다. 아래 중 하나로 고치세요:' -ForegroundColor Yellow
-        Write-Host "  1) 해당 폴더 생성:  New-Item -ItemType Directory -Force '$tempPath'" -ForegroundColor Yellow
-        Write-Host '  2) 기본값으로 복구:  setx TEMP "$env:USERPROFILE\AppData\Local\Temp"' -ForegroundColor Yellow
-        Write-Host '                       setx TMP  "$env:USERPROFILE\AppData\Local\Temp"' -ForegroundColor Yellow
-        exit 1
-    }
+    $current = [Environment]::GetEnvironmentVariable($varName, 'User')
+    if ($current -and (Test-Path $current)) { continue }
+
+    Write-Host "환경변수 $varName 이 유효하지 않습니다: '$current'" -ForegroundColor Red
+    if (-not (Test-Path $sane)) { New-Item -ItemType Directory -Force $sane | Out-Null }
+
+    [Environment]::SetEnvironmentVariable($varName, $sane, 'User')
+    Set-Item -Path "Env:$varName" -Value $sane
+    Write-Host "  -> $sane 로 복구했습니다 (다른 터미널은 재시작 필요)" -ForegroundColor Green
 }
 
 if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
