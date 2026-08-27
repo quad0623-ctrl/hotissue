@@ -8,6 +8,7 @@ import 'package:hotissue_collector/src/collector.dart';
 import 'package:hotissue_collector/src/server.dart';
 import 'package:hotissue_collector/src/source.dart';
 import 'package:hotissue_collector/src/store.dart';
+import 'package:hotissue_collector/src/supabase_sink.dart';
 
 /// 핫이슈 수집기.
 ///
@@ -37,6 +38,16 @@ Future<void> main(List<String> args) async {
 
   final collector = Collector(store: store);
 
+  // 환경변수가 있으면 Supabase 로도 밀어넣는다. 없으면 로컬 전용으로 돈다.
+  // 배포본(Vercel)은 Supabase 만 보므로 이게 있어야 실데이터가 배포본에 흐른다.
+  final sink = SupabaseSink.fromEnvironment();
+  if (sink == null) {
+    stdout.writeln('[수집기] Supabase 싱크 없음 (로컬 전용). '
+        'SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY 를 주면 켜집니다.');
+  } else {
+    stdout.writeln('[수집기] Supabase 싱크 켜짐 → ${sink.url}');
+  }
+
   final feedCount = kOutlets.fold<int>(0, (n, o) => n + o.feeds.length);
   stdout.writeln('[수집기] 언론사 ${kOutlets.length}곳 · 피드 $feedCount개');
   for (final o in kOutlets) {
@@ -47,10 +58,11 @@ Future<void> main(List<String> args) async {
 
   stdout.writeln('[수집기] 첫 수집 시작…');
   await collector.runOnce();
-  _report(collector, store);
+  await _syncAndReport(collector, store, sink);
 
   if (opts['once'] as bool) {
     collector.close();
+    sink?.close();
     return;
   }
 
@@ -58,7 +70,7 @@ Future<void> main(List<String> args) async {
   // 소스에 부담을 주지 않는 선이기도 하다. (plan.md §6.2 — 최소 60초 간격)
   Timer.periodic(interval, (_) async {
     await collector.runOnce();
-    _report(collector, store);
+    await _syncAndReport(collector, store, sink);
   });
 
   final server = CollectorServer(store: store, collector: collector);
@@ -74,7 +86,31 @@ Future<void> main(List<String> args) async {
   stdout.writeln('\n[수집기] 종료합니다…');
   await store.save();
   collector.close();
+  sink?.close();
   await httpServer.close(force: true);
+}
+
+/// 수집 결과를 보고하고, 싱크가 있으면 Supabase 로도 밀어넣는다.
+///
+/// 싱크가 실패해도 수집기는 계속 돈다. 로컬 저장소는 이미 갱신됐고,
+/// 다음 사이클에 다시 시도하면 되기 때문이다.
+Future<void> _syncAndReport(
+  Collector collector,
+  Store store,
+  SupabaseSink? sink,
+) async {
+  _report(collector, store);
+  if (sink == null || collector.lastError != null) return;
+
+  final live = store.issues.values.where((i) => i.status != 'archived');
+  final result = await sink.push(live);
+
+  if (result.ok) {
+    await sink.archiveStale(collector.archiveAfter);
+    stdout.writeln('         Supabase 동기화 ${result.pushed}건');
+  } else {
+    stderr.writeln('         Supabase 동기화 실패: ${result.error}');
+  }
 }
 
 void _report(Collector collector, Store store) {
