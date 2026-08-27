@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "핫이슈 (목 데이터, 설정 불필요)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "edge",
+      "args": ["--web-port=8080", "--dart-define=FORCE_MOCK=true"]
+    },
+    {
+      "name": "핫이슈 (Supabase, env/dev.json 필요)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "edge",
+      "args": ["--web-port=8080", "--dart-define-from-file=env/dev.json"]
+    },
+    {
+      "name": "핫이슈 (Chrome, 설치되어 있을 때)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": ["--web-port=8080", "--dart-define=FORCE_MOCK=true"]
+    },
+    {
+      "name": "핫이슈 (릴리스 웹 빌드 확인)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "edge",
+      "flutterMode": "release",
+      "args": ["--web-port=8080", "--dart-define-from-file=env/dev.json"]
+    }
+  ]
+}

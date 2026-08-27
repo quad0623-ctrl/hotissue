@@ -1,0 +1,21 @@
+# Windows/macOS/Linux 혼용 환경에서 줄바꿈 때문에 diff가 통째로 뜨는 걸 막는다.
+* text=auto eol=lf
+
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.ico   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+# GitHub 언어 통계에서 생성물 제외
+build/**            linguist-generated=true
+**/*.g.dart         linguist-generated=true
+**/*.freezed.dart   linguist-generated=true

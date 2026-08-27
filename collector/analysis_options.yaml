@@ -1,0 +1,14 @@
+# 순수 Dart 패키지다. 상위 Flutter 프로젝트의 analysis_options.yaml 을
+# 물려받지 않도록 여기에 따로 둔다 (flutter_lints 는 Flutter 패키지에만 맞다).
+include: package:lints/recommended.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    require_trailing_commas: true
+    avoid_print: false # CLI 도구라 stdout 출력이 정상 동작이다
+
+analyzer:
+  exclude:
+    - .data/**

@@ -1,0 +1,40 @@
+name: hotissue
+description: "핫이슈 - 한국 실시간 인기 검색어를 자체 로직으로 재정렬하고, 이슈별 인스턴트 채팅방에서 토론하는 PWA."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 상태관리
+  flutter_riverpod: ^2.5.1
+
+  # 라우팅 (웹 URL 딥링크 = PWA 공유 링크의 핵심)
+  go_router: ^14.2.0
+
+  # 백엔드. 익명 인증 + Postgres + Realtime + Storage.
+  # 설정이 없으면 앱이 목 백엔드로 폴백하므로 이 패키지 없이도 화면은 뜬다.
+  supabase_flutter: ^2.5.0
+
+  # 로컬 수집기(collector/) 백엔드용
+  http: ^1.2.0
+
+  # 익명 식별자 보관. 계정이 아니라 브라우저 단위 로컬 값이다.
+  shared_preferences: ^2.2.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  # Phase 2에서 폰트/이미지 에셋 추가 예정
+  # assets:
+  #   - assets/images/

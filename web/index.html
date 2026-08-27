@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- flutter build web --base-href 값으로 치환됩니다. 서브경로 배포 시 주의. -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="지금 한국에서 가장 뜨거운 이슈. 실시간 검색어 순위와 이슈별 즉석 토론방.">
+  <meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+
+  <!-- iOS: 홈 화면 추가 시 standalone 동작 -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="핫이슈">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+
+  <!-- 공유(카톡/트위터) 미리보기 -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="핫이슈">
+  <meta property="og:title" content="핫이슈 - 지금 한국에서 무슨 일이?">
+  <meta property="og:description" content="실시간 검색어를 자체 로직으로 재정렬하고, 이슈마다 즉석 토론방이 열립니다.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+
+  <title>핫이슈</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #0B0B0F;
+      overscroll-behavior-y: none;   /* PWA에서 당겨서 새로고침 방지 */
+      -webkit-tap-highlight-color: transparent;
+    }
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: radial-gradient(120% 90% at 50% 0%, #1C1420 0%, #0B0B0F 60%);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                   "Pretendard", "Malgun Gothic", sans-serif;
+      color: #FF4D4D;
+      transition: opacity .35s ease;
+    }
+    #splash .mark { font-size: 44px; line-height: 1; }
+    #splash .name { font-size: 15px; letter-spacing: .32em; color: #6E6E78; }
+    #splash.hide { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div class="mark">🔥</div>
+    <div class="name">HOT ISSUE</div>
+  </div>
+
+  <script>
+    // PWA 설치 프롬프트를 Flutter 쪽에서 임의 시점에 띄우기 위해 보관
+    // (Phase 4에서 dart:js_interop 으로 window.hotissueInstall() 호출)
+    window.__hotissueInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__hotissueInstallPrompt = e;
+    });
+    window.hotissueInstall = function () {
+      var p = window.__hotissueInstallPrompt;
+      if (!p) return false;
+      p.prompt();
+      window.__hotissueInstallPrompt = null;
+      return true;
+    };
+
+    // Flutter 첫 프레임이 뜨면 스플래시 제거
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('splash');
+      if (!el) return;
+      el.classList.add('hide');
+      setTimeout(function () { el.remove(); }, 400);
+    });
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

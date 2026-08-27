@@ -1,0 +1,49 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+*.iml
+*.log
+coverage/
+
+# 생성물
+**/*.g.dart
+**/*.freezed.dart
+
+# Claude Code 개인 로컬 설정 (팀 공유 대상 아님)
+.claude/settings.local.json
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 환경변수 / 시크릿
+# env/dev.json 에 Supabase 키가 들어간다. 예시 파일만 커밋한다.
+.env
+.env.*
+!.env.example
+env/*.json
+!env/*.example.json
+lib/core/config/secrets.dart
+
+# 수집기 로컬 상태 (수집한 뉴스 데이터가 들어간다 — 커밋하지 않는다)
+collector/.data/
+collector/.dart_tool/
+collector/build/
+collector/pubspec.lock
+
+# Supabase CLI 로컬 상태
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# OS
+.DS_Store
+Thumbs.db

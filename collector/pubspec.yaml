@@ -1,0 +1,20 @@
+name: hotissue_collector
+description: "핫이슈 수집기 — 공식 RSS 피드에서 실시간 이슈를 모아 앱에 서빙한다."
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+# 순수 Dart 패키지다. Flutter 앱에 의존하지 않는다.
+# 나중에 Cloud Run / Edge Function 으로 그대로 올릴 수 있게 하려는 의도.
+dependencies:
+  http: ^1.2.0
+  xml: ^6.5.0
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  args: ^2.5.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^4.0.0

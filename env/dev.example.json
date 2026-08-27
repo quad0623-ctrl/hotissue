@@ -1,0 +1,11 @@
+{
+  "_comment": "이 파일을 env/dev.json 으로 복사하고 값을 채우세요. dev.json 은 커밋되지 않습니다.",
+  "_where": "Supabase 대시보드 > Project Settings > API 에서 URL 과 anon public 키를 복사",
+  "_local": "supabase start 로 로컬 실행 시에는 터미널에 출력되는 API URL / anon key 를 사용",
+
+  "SUPABASE_URL": "https://YOUR_PROJECT_REF.supabase.co",
+  "SUPABASE_ANON_KEY": "YOUR_ANON_PUBLIC_KEY",
+
+  "_force_mock": "true 로 두면 Supabase 설정이 있어도 목 백엔드로 실행됩니다",
+  "FORCE_MOCK": false
+}
