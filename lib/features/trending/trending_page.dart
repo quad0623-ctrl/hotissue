@@ -6,6 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/ranking/ranked_issue.dart';
 import '../../state/providers.dart';
+import 'widgets/animated_rank_list.dart';
 import 'widgets/issue_card.dart';
 import 'widgets/live_header.dart';
 import 'widgets/mode_selector.dart';
@@ -34,17 +35,17 @@ class TrendingPage extends ConsumerWidget {
               },
             ),
           ),
-          SliverList.separated(
-            itemCount: issues.length,
-            separatorBuilder: (_, __) => const Divider(
-              indent: 20,
-              endIndent: 20,
-              color: AppColors.border,
-            ),
-            itemBuilder: (_, i) => IssueCard(
-              ranked: issues[i],
-              onTap: () => context.push('/issue/${issues[i].issue.id}'),
-              onExplain: () => _showBreakdown(context, issues[i]),
+          // 순위가 바뀌면 카드가 자리를 옮긴다.
+          // 5분에 한 번뿐인 변화라 놓치면 안 된다.
+          SliverToBoxAdapter(
+            child: AnimatedRankList(
+              items: issues,
+              itemHeight: issueCardHeight(context),
+              itemBuilder: (context, item) => IssueCard(
+                ranked: item,
+                onTap: () => context.push('/issue/${item.issue.id}'),
+                onExplain: () => _showBreakdown(context, item),
+              ),
             ),
           ),
           const SliverToBoxAdapter(child: _Footer()),

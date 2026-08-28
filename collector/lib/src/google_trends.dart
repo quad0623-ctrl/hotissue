@@ -45,6 +45,7 @@ List<TrendEntry> parseGoogleTrends(String xmlBody) {
         keyword: keyword,
         rank: rank,
         approxTraffic: _text(item, 'approx_traffic'),
+        imageUrl: _text(item, 'picture'),
         newsTitle: news == null ? null : _text(news, 'news_item_title'),
         newsUrl: news == null ? null : _text(news, 'news_item_url'),
         newsOutlet: news == null ? null : _text(news, 'news_item_source'),

@@ -13,7 +13,10 @@
       "Read(//c/Users/USER/Documents/WindowsPowerShell/**)",
       "Bash(git add *)",
       "Bash(git -c user.name=\"quad0623-ctrl\" -c user.email=\"quad06@naver.com\" commit -q -F -)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx --yes supabase@latest functions deploy collect --project-ref flwupjrspntmczzpgtiy)",
+      "Bash(curl -s --max-time 180 -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' https://flwupjrspntmczzpgtiy.supabase.co/functions/v1/collect)",
+      "Bash(python -c ' *)"
     ]
   }
 }

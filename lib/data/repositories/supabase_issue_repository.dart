@@ -32,19 +32,25 @@ class SupabaseIssueRepository implements IssueRepository {
 
   String? get _uid => _client.auth.currentUser?.id;
 
+  /// 활성 이슈 스트림.
+  ///
+  /// **필터를 서버에 둔다.** 예전에는 40건을 먼저 잘라온 뒤 클라이언트에서
+  /// 아카이브를 걸렀는데, 이슈가 157건까지 쌓이자 잘라온 40건 중 31건이
+  /// 아카이브라서 화면에 9건만 남았다. 관문과 필터의 순서가 뒤바뀌어 있었다.
+  ///
+  /// **정렬 기준이 최신순인 이유**: 이건 화면 순위가 아니라 *어느 행을 보낼지*
+  /// 고르는 관문이다. 실제 순위는 클라이언트가 정렬 모드별로 HotScoreEngine 으로
+  /// 계산한다. 관문에는 최신성이면 충분하고, 6시간이 지나면 아카이브로 빠지므로
+  /// 오래된 것이 자리를 차지할 수 없다.
   @override
   Stream<List<Issue>> watchIssues() {
     return _client
         .from('issues')
         .stream(primaryKey: ['id'])
-        .order('hot_score', ascending: false)
-        .limit(40)
-        .map(
-          (rows) => rows
-              .where((row) => row['status'] != 'archived')
-              .map(Issue.fromRow)
-              .toList(),
-        );
+        .neq('status', 'archived')
+        .order('last_seen_at', ascending: false)
+        .limit(100)
+        .map((rows) => rows.map(Issue.fromRow).toList());
   }
 
   @override

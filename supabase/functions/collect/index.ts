@@ -165,6 +165,7 @@ interface TrendEntry {
   keyword: string;
   rank: number;
   approxTraffic: string | null;
+  imageUrl: string | null;
   newsTitle: string | null;
   newsUrl: string | null;
   newsOutlet: string | null;
@@ -187,6 +188,8 @@ function parseTrends(xml: string): TrendEntry[] {
       keyword,
       rank: out.length + 1,
       approxTraffic: text(item?.approx_traffic),
+      // 트렌드 피드가 함께 주는 기사 썸네일. 추가 요청이 필요 없다.
+      imageUrl: text(item?.picture),
       newsTitle: news ? text(news.news_item_title) : null,
       newsUrl: news ? text(news.news_item_url) : null,
       newsOutlet: news ? text(news.news_item_source) : null,
@@ -312,11 +315,15 @@ Deno.serve(async (req) => {
       summary: entry.newsSnippet ?? entry.newsTitle,
       status: statusFor(before, ranks),
       ranks,
-      related_keywords: relatedFor(entry, trends, headlines),
       source_title: entry.newsTitle,
       source_url: entry.newsUrl,
       source_outlet: entry.newsOutlet,
       approx_traffic: entry.approxTraffic,
+      image_url: entry.imageUrl,
+      // related_keywords 는 보내지 않는다. 예전에는 두 트렌드 키워드가 같은
+      // 헤드라인에 등장하는지 전수 비교했는데, 매 실행 약 9만 회 매칭에
+      // 산출은 157건 전부 빈 배열이었다. 컬럼은 남겨둔다 —
+      // 키워드 클러스터링(DATA-02)이 채울 자리다.
       last_seen_at: now,
       // first_seen_at 은 보내지 않는다. 덮어쓰면 신선도·나이 계산이 망가진다.
     };
@@ -370,30 +377,6 @@ function statusFor(
   if (delta > 1) return "rising";
   if (delta < -1) return "cooling";
   return "steady";
-}
-
-/**
- * 같은 헤드라인에 함께 등장하는 트렌드 키워드끼리 연결.
- * 임의 태그가 아니라 실제 동시 등장이라 의미가 있다.
- * 연관 판정은 직접 매칭만 쓴다 — 같은 기사 판정까지 넣으면 무관한 키워드가 엮인다.
- */
-function relatedFor(
-  self: TrendEntry,
-  all: TrendEntry[],
-  headlines: Map<string, string[]>,
-): string[] {
-  const every = [...headlines.values()].flat();
-  const out: string[] = [];
-
-  for (const other of all) {
-    if (other.keyword === self.keyword) continue;
-    const together = every.some((h) =>
-      mentions(h, self.keyword) && mentions(h, other.keyword)
-    );
-    if (together) out.push(other.keyword);
-    if (out.length >= 3) break;
-  }
-  return out;
 }
 
 function json(body: unknown, status = 200): Response {

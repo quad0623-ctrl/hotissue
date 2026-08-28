@@ -107,6 +107,7 @@ class Issue {
     this.sourceUrl,
     this.sourceOutlet,
     this.approxTraffic,
+    this.imageUrl,
   });
 
   final String id;
@@ -130,6 +131,9 @@ class Issue {
 
   /// 구글 트렌드가 주는 대략적 검색량 (`2000+`)
   final String? approxTraffic;
+
+  /// 기사 썸네일. 이미지를 복제하지 않고 원본 URL 만 들고 있는다.
+  final String? imageUrl;
 
   Duration get age => DateTime.now().difference(firstSeenAt);
 
@@ -159,6 +163,7 @@ class Issue {
       sourceUrl: row['source_url'] as String?,
       sourceOutlet: row['source_outlet'] as String?,
       approxTraffic: row['approx_traffic'] as String?,
+      imageUrl: row['image_url'] as String?,
       stats: RoomStats(
         posts: parseInt(row['posts_count']),
         comments: parseInt(row['comments_count']),
@@ -190,6 +195,7 @@ class Issue {
       sourceUrl: sourceUrl,
       sourceOutlet: sourceOutlet,
       approxTraffic: approxTraffic,
+      imageUrl: imageUrl,
     );
   }
 }

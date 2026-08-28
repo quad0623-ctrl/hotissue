@@ -139,6 +139,7 @@ class TrendEntry {
     required this.keyword,
     required this.rank,
     this.approxTraffic,
+    this.imageUrl,
     this.newsTitle,
     this.newsUrl,
     this.newsOutlet,
@@ -152,6 +153,9 @@ class TrendEntry {
 
   /// 구글 트렌드가 주는 대략적 검색량 (예: `2000+`)
   final String? approxTraffic;
+
+  /// 기사 썸네일 URL. 이미지를 복제하지 않고 링크만 보관한다.
+  final String? imageUrl;
 
   final String? newsTitle;
   final String? newsUrl;

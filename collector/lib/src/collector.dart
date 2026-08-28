@@ -137,12 +137,12 @@ class Collector {
         ..sourceUrl = entry.newsUrl ?? record.sourceUrl
         ..sourceOutlet = entry.newsOutlet ?? record.sourceOutlet
         ..approxTraffic = entry.approxTraffic ?? record.approxTraffic
+        ..imageUrl = entry.imageUrl ?? record.imageUrl
         ..status = _status(previousRanks, ranks, isNew: previous == null);
 
       store.issues[id] = record;
     }
 
-    _linkRelated(trends, headlines);
     _archiveStale(seenIds, now);
     store.recountAll();
 
@@ -238,31 +238,11 @@ class Collector {
     return 'steady';
   }
 
-  /// 같은 헤드라인에 함께 등장하는 트렌드 키워드끼리 연결한다.
-  /// 임의로 붙이는 태그가 아니라 실제 동시 등장이라 의미가 있다.
-  void _linkRelated(
-    List<TrendEntry> trends,
-    Map<String, List<Headline>> headlines,
-  ) {
-    final allHeadlines = headlines.values.expand((e) => e).toList();
-
-    for (final a in trends) {
-      final related = <String>{};
-
-      for (final b in trends) {
-        if (a.keyword == b.keyword) continue;
-        final together = allHeadlines.any(
-          (h) => mentions(h.title, a.keyword) && mentions(h.title, b.keyword),
-        );
-        // 연관 판정은 직접 매칭만 쓴다. 같은 기사 판정까지 넣으면
-        // 트렌드 기사 제목이 비슷하다는 이유로 무관한 키워드가 엮인다.
-        if (together) related.add(b.keyword);
-        if (related.length >= 3) break;
-      }
-
-      store.issues[issueIdFor(a.keyword)]?.relatedKeywords = related.toList();
-    }
-  }
+  // 연관 키워드 계산은 제거했다.
+  // 트렌드 키워드 두 개가 같은 헤드라인에 등장할 때만 연결하는 규칙이었는데,
+  // 실제로는 거의 일어나지 않아 산출이 늘 0이었다. 그런데 비용은 매 사이클
+  // 약 9만 회 문자열 매칭이었다. relatedKeywords 필드는 남겨둔다 —
+  // 키워드 클러스터링(DATA-02)이 채울 자리다. (Edge Function 도 같이 제거함)
 
   /// 이번 사이클에 안 보였고 충분히 오래된 이슈를 아카이브로 내린다.
   ///

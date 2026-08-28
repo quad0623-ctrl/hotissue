@@ -17,6 +17,7 @@ class IssueRecord {
     this.sourceUrl,
     this.sourceOutlet,
     this.approxTraffic,
+    this.imageUrl,
   });
 
   final String id;
@@ -40,6 +41,9 @@ class IssueRecord {
   /// 구글 트렌드가 주는 대략적 검색량 (`2000+`)
   String? approxTraffic;
 
+  /// 기사 썸네일 URL
+  String? imageUrl;
+
   /// 참여 지표는 스토어가 계산해서 채운다
   int postsCount = 0;
   int commentsCount = 0;
@@ -58,6 +62,7 @@ class IssueRecord {
         'source_url': sourceUrl,
         'source_outlet': sourceOutlet,
         'approx_traffic': approxTraffic,
+        'image_url': imageUrl,
         'posts_count': postsCount,
         'comments_count': commentsCount,
         'likes_count': likesCount,
@@ -86,6 +91,7 @@ class IssueRecord {
       sourceUrl: j['source_url'] as String?,
       sourceOutlet: j['source_outlet'] as String?,
       approxTraffic: j['approx_traffic'] as String?,
+      imageUrl: j['image_url'] as String?,
     );
     return r;
   }
