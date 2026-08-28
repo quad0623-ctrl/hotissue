@@ -128,3 +128,115 @@ class MyInteractionsNotifier
     state = AsyncData(_current.withReaction(postId, emoji, on));
   }
 }
+
+// ── 데이터 신선도 ────────────────────────────────────────────────
+//
+// 순위 데이터는 5분에 한 번만 바뀐다. 그 사이 화면이 살아있다는 걸 보여주는
+// 유일하게 정직한 값이 "마지막 갱신 이후 흐른 시간"이다. 이건 매초 바뀐다.
+
+/// pg_cron 의 수집 주기. `supabase/migrations/..._cron_collect.sql` 과 맞춰야 한다.
+const kCollectInterval = Duration(minutes: 5);
+
+/// 이 시간을 넘겨도 갱신이 없으면 수집이 멈춘 것으로 본다.
+/// 한 사이클을 통째로 놓칠 여유를 준다 — 네트워크 지연으로 오탐하면 안 된다.
+const kStaleAfter = Duration(minutes: 11);
+
+/// 1초 틱.
+///
+/// **시간을 표시하는 위젯만 구독할 것.** 순위 리스트가 이걸 구독하면
+/// 데이터가 안 바뀌어도 매초 리빌드된다.
+final tickProvider = StreamProvider<DateTime>((ref) {
+  return Stream<DateTime>.periodic(
+    const Duration(seconds: 1),
+    (_) => DateTime.now(),
+  );
+});
+
+/// 수집기가 마지막으로 쓴 시각.
+///
+/// 클라이언트가 응답을 받은 시각이 아니다. 그건 폴링 주기를 반영할 뿐
+/// 데이터가 실제로 새것인지는 말해주지 않는다.
+final lastCollectedAtProvider = Provider<DateTime?>((ref) {
+  final issues = ref.watch(issuesStreamProvider).valueOrNull;
+  if (issues == null || issues.isEmpty) return null;
+
+  return issues.map((i) => i.lastSeenAt).reduce((a, b) => a.isAfter(b) ? a : b);
+});
+
+enum FreshnessState {
+  /// 방금 갱신됨. 도트가 강하게 퍼진다.
+  justUpdated,
+
+  /// 정상 대기. 다음 갱신까지 카운트다운.
+  waiting,
+
+  /// 갱신이 끊겼다. 화면이 조용히 거짓말하지 않게 상태를 드러낸다.
+  stale,
+
+  /// 아직 데이터를 못 받음.
+  unknown,
+}
+
+class DataFreshness {
+  const DataFreshness({
+    required this.state,
+    required this.age,
+    required this.untilNext,
+  });
+
+  final FreshnessState state;
+
+  /// 마지막 수집 이후 흐른 시간
+  final Duration age;
+
+  /// 다음 수집까지 남은 예상 시간 (지났으면 Duration.zero)
+  final Duration untilNext;
+
+  /// `12초 전 갱신` / `2분 14초 전` / `갱신 지연 · 13분째`
+  String get ageLabel {
+    if (state == FreshnessState.unknown) return '연결 중';
+    if (age.inSeconds < 5) return '방금 갱신';
+    if (age.inMinutes < 1) return '${age.inSeconds}초 전 갱신';
+    if (state == FreshnessState.stale) return '갱신 지연 · ${age.inMinutes}분째';
+    return '${age.inMinutes}분 ${age.inSeconds % 60}초 전';
+  }
+
+  /// `다음 4:48`. 지연 상태이거나 알 수 없으면 null.
+  String? get nextLabel {
+    if (state != FreshnessState.waiting) return null;
+    if (untilNext == Duration.zero) return '갱신 대기 중';
+
+    final m = untilNext.inMinutes;
+    final s = untilNext.inSeconds % 60;
+    return '다음 $m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+/// 매초 갱신되는 신선도. 헤더 전용이다.
+final dataFreshnessProvider = Provider<DataFreshness>((ref) {
+  final now = ref.watch(tickProvider).valueOrNull ?? DateTime.now();
+  final at = ref.watch(lastCollectedAtProvider);
+
+  if (at == null) {
+    return const DataFreshness(
+      state: FreshnessState.unknown,
+      age: Duration.zero,
+      untilNext: Duration.zero,
+    );
+  }
+
+  final age = now.difference(at);
+  final remaining = kCollectInterval - age;
+
+  final state = age >= kStaleAfter
+      ? FreshnessState.stale
+      : age.inSeconds < 5
+          ? FreshnessState.justUpdated
+          : FreshnessState.waiting;
+
+  return DataFreshness(
+    state: state,
+    age: age.isNegative ? Duration.zero : age,
+    untilNext: remaining.isNegative ? Duration.zero : remaining,
+  );
+});
