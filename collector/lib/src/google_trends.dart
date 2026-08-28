@@ -36,9 +36,20 @@ List<TrendEntry> parseGoogleTrends(String xmlBody) {
 
     rank++;
 
-    // 첫 번째 뉴스 항목을 대표로 쓴다. 피드가 중요도 순으로 준다.
-    final news =
-        item.childElements.where((e) => e.localName == 'news_item').firstOrNull;
+    // 피드가 중요도 순으로 주므로 첫 번째가 대표다.
+    final newsItems = <TrendNewsItem>[];
+    for (final n
+        in item.childElements.where((e) => e.localName == 'news_item')) {
+      final title = _text(n, 'news_item_title');
+      if (title == null) continue;
+      newsItems.add(
+        TrendNewsItem(
+          title: title,
+          outlet: _text(n, 'news_item_source'),
+          url: _text(n, 'news_item_url'),
+        ),
+      );
+    }
 
     entries.add(
       TrendEntry(
@@ -46,10 +57,10 @@ List<TrendEntry> parseGoogleTrends(String xmlBody) {
         rank: rank,
         approxTraffic: _text(item, 'approx_traffic'),
         imageUrl: _text(item, 'picture'),
-        newsTitle: news == null ? null : _text(news, 'news_item_title'),
-        newsUrl: news == null ? null : _text(news, 'news_item_url'),
-        newsOutlet: news == null ? null : _text(news, 'news_item_source'),
-        newsSnippet: news == null ? null : _text(news, 'news_item_snippet'),
+        newsTitle: newsItems.isEmpty ? null : newsItems.first.title,
+        newsUrl: newsItems.isEmpty ? null : newsItems.first.url,
+        newsOutlet: newsItems.isEmpty ? null : newsItems.first.outlet,
+        newsItems: newsItems,
       ),
     );
   }

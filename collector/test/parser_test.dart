@@ -40,10 +40,13 @@ const _newsXml = '''
     <title>연합뉴스</title>
     <item>
       <title>한국은행, 기준금리 동결</title>
+      <description>금융통화위원회가 기준금리를 동결했다.</description>
       <link>https://example.com/1</link>
+      <pubDate>Fri, 28 Aug 2026 09:00:00 +0900</pubDate>
     </item>
     <item>
       <title><![CDATA[다음달 1일 기후동행패스 출시…신규카드 무료 교환]]></title>
+      <description><![CDATA[<p>신규카드 무료로 교환해준다</p>]]></description>
       <link>https://example.com/2</link>
     </item>
   </channel>
@@ -69,9 +72,15 @@ void main() {
     test('첫 번째 뉴스 항목을 대표로 쓴다', () {
       expect(entries[0].newsOutlet, '경향신문');
       expect(entries[0].newsUrl, 'https://example.com/a');
-      expect(entries[0].newsSnippet, '신규카드 무료로 교환해준다');
       // HTML 엔티티가 풀려야 한다
       expect(entries[0].newsTitle, contains("'기후동행패스'"));
+    });
+
+    test('news_item 을 전부 담는다', () {
+      // 언론사 매칭이 안 된 이슈에서도 링크는 남아야 한다.
+      expect(entries[0].newsItems, hasLength(2));
+      expect(entries[0].newsItems[1].title, '두 번째 기사');
+      expect(entries[1].newsItems, isEmpty);
     });
 
     test('뉴스 항목이 없어도 죽지 않는다', () {
@@ -80,12 +89,29 @@ void main() {
     });
 
     test('채널 제목을 항목으로 오인하지 않는다', () {
-      expect(entries.map((e) => e.keyword), isNot(contains('Daily Search Trends')));
+      expect(
+        entries.map((e) => e.keyword),
+        isNot(contains('Daily Search Trends')),
+      );
     });
   });
 
   group('언론사 RSS 파서', () {
     final headlines = parseNewsRss(_newsXml);
+
+    // 이 리드가 브리핑의 유일한 본문 공급원이다.
+    // 구글 트렌드의 news_item_snippet 은 늘 비어 있어서(확인: 30건 전부 0자)
+    // 예전엔 요약 자리에 제목이 들어가 있었다.
+    test('description 을 기사 리드로 가져온다', () {
+      expect(headlines[0].summary, isNotNull);
+      expect(headlines[0].summary, contains('기준금리를 동결'));
+      expect(headlines[0].url, 'https://example.com/1');
+    });
+
+    test('리드의 태그를 벗기되 문장은 바꾸지 않는다', () {
+      expect(headlines[1].summary, isNot(contains('<')));
+      expect(headlines[1].summary, contains('신규카드'));
+    });
 
     test('제목과 순서', () {
       expect(headlines, hasLength(2));

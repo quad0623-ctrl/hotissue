@@ -72,6 +72,51 @@ class RoomStats {
   }
 }
 
+/// 이슈에 딸린 기사 한 건.
+///
+/// **본문이 아니라 피드가 준 리드와 링크만 담는다.** 언론사 RSS 의 `description`
+/// 은 언론사가 배포 목적으로 넣은 값이고, 표준 RSS 리더가 그대로 보여주는 값이다.
+///
+/// 화면에 쓸 때는 **언론사명과 원문 링크를 반드시 함께 노출한다.**
+class Article {
+  const Article({
+    required this.title,
+    this.outletLabel,
+    this.summary,
+    this.url,
+    this.publishedAt,
+    this.fromTrends = false,
+  });
+
+  final String title;
+
+  /// 표시용 언론사명. 언론사 RSS 매칭이면 우리 라벨, 트렌드 출처면 구글이 준 이름.
+  final String? outletLabel;
+
+  /// 기사 리드. 구글 트렌드가 물고 온 기사에는 없다 (snippet 이 늘 비어 있다).
+  final String? summary;
+
+  final String? url;
+  final DateTime? publishedAt;
+
+  /// 구글 트렌드에서 온 항목인가. 이쪽은 리드가 없어 제목·링크만 쓸 수 있다.
+  final bool fromTrends;
+
+  bool get hasSummary => summary != null && summary!.trim().isNotEmpty;
+
+  factory Article.fromJson(Map<String, dynamic> json) {
+    final published = json['published_at'];
+    return Article(
+      title: json['title'] as String? ?? '',
+      outletLabel: json['outlet_label'] as String?,
+      summary: json['summary'] as String?,
+      url: json['url'] as String?,
+      publishedAt: published is String ? DateTime.tryParse(published) : null,
+      fromTrends: json['origin'] == 'trends',
+    );
+  }
+}
+
 /// 이슈 생애주기.
 enum IssueStatus {
   rising('급상승'),
@@ -108,6 +153,7 @@ class Issue {
     this.sourceOutlet,
     this.approxTraffic,
     this.imageUrl,
+    this.articles = const [],
   });
 
   final String id;
@@ -134,6 +180,13 @@ class Issue {
 
   /// 기사 썸네일. 이미지를 복제하지 않고 원본 URL 만 들고 있는다.
   final String? imageUrl;
+
+  /// 관련 기사. 리드가 있는 것이 앞에 온다.
+  final List<Article> articles;
+
+  /// [summary] 가 실제 기사 리드인가, 아니면 제목 폴백인가.
+  /// 리드가 하나도 없으면 요약처럼 보여주면 안 된다.
+  bool get hasRealSummary => articles.any((a) => a.hasSummary);
 
   Duration get age => DateTime.now().difference(firstSeenAt);
 
@@ -164,6 +217,13 @@ class Issue {
       sourceOutlet: row['source_outlet'] as String?,
       approxTraffic: row['approx_traffic'] as String?,
       imageUrl: row['image_url'] as String?,
+      articles: switch (row['articles']) {
+        final List raw => raw
+            .whereType<Map>()
+            .map((e) => Article.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        _ => const <Article>[],
+      },
       stats: RoomStats(
         posts: parseInt(row['posts_count']),
         comments: parseInt(row['comments_count']),
@@ -196,6 +256,7 @@ class Issue {
       sourceOutlet: sourceOutlet,
       approxTraffic: approxTraffic,
       imageUrl: imageUrl,
+      articles: articles,
     );
   }
 }

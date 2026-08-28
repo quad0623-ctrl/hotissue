@@ -18,6 +18,7 @@ class IssueRecord {
     this.sourceOutlet,
     this.approxTraffic,
     this.imageUrl,
+    this.articles = const [],
   });
 
   final String id;
@@ -44,6 +45,9 @@ class IssueRecord {
   /// 기사 썸네일 URL
   String? imageUrl;
 
+  /// 관련 기사. 피드가 준 리드와 링크만 담는다 (본문 아님).
+  List<Map<String, dynamic>> articles;
+
   /// 참여 지표는 스토어가 계산해서 채운다
   int postsCount = 0;
   int commentsCount = 0;
@@ -63,6 +67,7 @@ class IssueRecord {
         'source_outlet': sourceOutlet,
         'approx_traffic': approxTraffic,
         'image_url': imageUrl,
+        'articles': articles,
         'posts_count': postsCount,
         'comments_count': commentsCount,
         'likes_count': likesCount,
@@ -92,6 +97,10 @@ class IssueRecord {
       sourceOutlet: j['source_outlet'] as String?,
       approxTraffic: j['approx_traffic'] as String?,
       imageUrl: j['image_url'] as String?,
+      articles: ((j['articles'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
     );
     return r;
   }

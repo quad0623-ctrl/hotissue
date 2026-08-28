@@ -68,6 +68,7 @@ class SupabaseSink {
           'source_outlet': i.sourceOutlet,
           'approx_traffic': i.approxTraffic,
           'image_url': i.imageUrl,
+          'articles': i.articles,
           'last_seen_at': i.lastSeenAt.toUtc().toIso8601String(),
         },
     ];

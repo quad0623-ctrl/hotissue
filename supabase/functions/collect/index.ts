@@ -75,6 +75,12 @@ const USER_AGENT = "hotissue-collector/0.1 (+prototype; supabase edge function)"
 const ARCHIVE_AFTER_HOURS = 6;
 const HEADLINES_PER_FEED = 60;
 
+/// 리드 저장 상한. 자르기만 하고 문장을 고치지 않는다.
+const MAX_SUMMARY = 600;
+
+/// 방 상단 브리핑에 올릴 기사 수
+const MAX_ARTICLES = 6;
+
 // ── 정규화 · 매칭 ──────────────────────────────────────────────────
 // collector/lib/src/normalize.dart, match.dart 와 같은 규칙.
 
@@ -161,15 +167,29 @@ function text(v: unknown): string | null {
   return s.length === 0 ? null : s;
 }
 
+/** 구글 트렌드가 키워드마다 물고 오는 기사 (항목당 3건). */
+interface TrendNewsItem {
+  title: string;
+  outlet: string | null;
+  url: string | null;
+}
+
 interface TrendEntry {
   keyword: string;
   rank: number;
   approxTraffic: string | null;
   imageUrl: string | null;
+
+  /// 대표 기사 (첫 번째 news_item)
   newsTitle: string | null;
   newsUrl: string | null;
   newsOutlet: string | null;
-  newsSnippet: string | null;
+
+  /// 전체 news_item. 언론사 매칭이 안 된 이슈에서도 링크는 남게 한다.
+  ///
+  /// `ht:news_item_snippet` 은 담지 않는다 — 확인해 보니 늘 비어 있다(30건 전부 0자).
+  /// 그걸 요약으로 쓰려다 계속 제목으로 폴백해서 "헤드라인만 보인다"는 문제가 났다.
+  newsItems: TrendNewsItem[];
 }
 
 function parseTrends(xml: string): TrendEntry[] {
@@ -181,8 +201,18 @@ function parseTrends(xml: string): TrendEntry[] {
     const keyword = text(item?.title);
     if (!keyword) continue;
 
-    // 첫 번째 뉴스 항목을 대표로 쓴다. 피드가 중요도 순으로 준다.
-    const news = asArray(item?.news_item)[0];
+    // 피드가 중요도 순으로 주므로 첫 번째가 대표다.
+    const rawItems = asArray(item?.news_item);
+    const newsItems: TrendNewsItem[] = [];
+    for (const n of rawItems) {
+      const title = text(n?.news_item_title);
+      if (!title) continue;
+      newsItems.push({
+        title,
+        outlet: text(n?.news_item_source),
+        url: text(n?.news_item_url),
+      });
+    }
 
     out.push({
       keyword,
@@ -190,23 +220,55 @@ function parseTrends(xml: string): TrendEntry[] {
       approxTraffic: text(item?.approx_traffic),
       // 트렌드 피드가 함께 주는 기사 썸네일. 추가 요청이 필요 없다.
       imageUrl: text(item?.picture),
-      newsTitle: news ? text(news.news_item_title) : null,
-      newsUrl: news ? text(news.news_item_url) : null,
-      newsOutlet: news ? text(news.news_item_source) : null,
-      newsSnippet: news ? text(news.news_item_snippet) : null,
+      newsTitle: newsItems[0]?.title ?? null,
+      newsUrl: newsItems[0]?.url ?? null,
+      newsOutlet: newsItems[0]?.outlet ?? null,
+      newsItems,
     });
   }
   return out;
 }
 
-function parseHeadlines(xml: string): string[] {
+/** 언론사 피드의 기사 한 건. */
+interface Article {
+  title: string;
+  /** 피드가 제공한 기사 리드. 언론사가 배포 목적으로 넣은 값이다. */
+  summary: string | null;
+  url: string | null;
+  publishedAt: string | null;
+}
+
+/// RSS description 에는 종종 태그가 섞여 온다. 텍스트만 남기되 **문장은 바꾸지 않는다.**
+function stripTags(input: string | null): string | null {
+  if (!input) return null;
+  const plain = input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+  return plain.length === 0 ? null : plain.slice(0, MAX_SUMMARY);
+}
+
+function parseArticles(xml: string): Article[] {
   const doc = parser.parse(xml);
   const items = asArray(doc?.rss?.channel?.item);
 
-  const out: string[] = [];
+  const out: Article[] = [];
   for (const item of items) {
-    const t = text(item?.title);
-    if (t) out.push(t);
+    const title = text(item?.title);
+    if (!title) continue;
+
+    out.push({
+      title,
+      summary: stripTags(text(item?.description)),
+      url: text(item?.link),
+      publishedAt: text(item?.pubDate),
+    });
     if (out.length >= HEADLINES_PER_FEED) break;
   }
   return out;
@@ -248,16 +310,16 @@ Deno.serve(async (req) => {
   // 2) 뉴스 — 보도되는지 검증하는 소스. 하나 죽어도 계속 간다.
   //    Edge Function 은 실행 시간 제한이 있으므로 언론사별로 병렬 수집한다.
   const newsOutlets = OUTLETS.filter((o) => o.kind === "news");
-  const headlines = new Map<string, string[]>();
+  const headlines = new Map<string, Article[]>();
 
   await Promise.all(newsOutlets.map(async (outlet) => {
-    const collected: string[] = [];
+    const collected: Article[] = [];
     let failed = 0;
 
     const results = await Promise.allSettled(outlet.feeds.map(fetchText));
     for (const r of results) {
       if (r.status === "fulfilled") {
-        collected.push(...parseHeadlines(r.value));
+        collected.push(...parseArticles(r.value));
       } else {
         failed++;
       }
@@ -296,9 +358,15 @@ Deno.serve(async (req) => {
       observed_at: now,
     }];
 
+    // 매칭된 기사를 버리지 않고 들고 있는다. 예전에는 위치만 기록하고
+    // 정작 내용이 담긴 리드를 버렸다 — 그래서 방에 헤드라인만 남았다.
+    const matched: Array<Record<string, unknown>> = [];
+
     for (const outlet of newsOutlets) {
       const list = headlines.get(outlet.id) ?? [];
-      const idx = list.findIndex((h) => matches(h, entry.keyword, entry.newsTitle ?? undefined));
+      const idx = list.findIndex(
+        (a) => matches(a.title, entry.keyword, entry.newsTitle ?? undefined),
+      );
       if (idx === -1) continue;
 
       ranks.push({
@@ -307,12 +375,47 @@ Deno.serve(async (req) => {
         previous_rank: before[outlet.id] ?? null,
         observed_at: now,
       });
+
+      const article = list[idx];
+      matched.push({
+        outlet: outlet.id,
+        outlet_label: outlet.label,
+        title: article.title,
+        summary: article.summary,
+        url: article.url,
+        published_at: article.publishedAt,
+        origin: "rss",
+      });
     }
+
+    // 구글 트렌드가 물고 온 기사도 담는다. 리드는 없지만 언론사와 링크는 있어서
+    // 언론사 매칭이 안 된 이슈에서도 화면이 비지 않는다.
+    for (const n of entry.newsItems) {
+      if (matched.some((m) => m.url === n.url)) continue;
+      matched.push({
+        outlet: null,
+        outlet_label: n.outlet,
+        title: n.title,
+        summary: null,
+        url: n.url,
+        published_at: null,
+        origin: "trends",
+      });
+    }
+
+    // 리드가 있는 기사를 위로. 그다음은 리드가 긴 순.
+    matched.sort((a, b) =>
+      String(b.summary ?? "").length - String(a.summary ?? "").length
+    );
+    const articles = matched.slice(0, MAX_ARTICLES);
+
+    // 가장 충실한 리드를 요약으로 쓴다. 없으면 예전처럼 제목으로 폴백한다.
+    const bestLead = articles.find((a) => a.summary)?.summary as string | undefined;
 
     return {
       keyword: entry.keyword,
       normalized_keyword: key,
-      summary: entry.newsSnippet ?? entry.newsTitle,
+      summary: bestLead ?? entry.newsTitle,
       status: statusFor(before, ranks),
       ranks,
       source_title: entry.newsTitle,
@@ -320,6 +423,7 @@ Deno.serve(async (req) => {
       source_outlet: entry.newsOutlet,
       approx_traffic: entry.approxTraffic,
       image_url: entry.imageUrl,
+      articles,
       // related_keywords 는 보내지 않는다. 예전에는 두 트렌드 키워드가 같은
       // 헤드라인에 등장하는지 전수 비교했는데, 매 실행 약 9만 회 매칭에
       // 산출은 157건 전부 빈 배열이었다. 컬럼은 남겨둔다 —

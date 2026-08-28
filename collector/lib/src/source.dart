@@ -143,7 +143,7 @@ class TrendEntry {
     this.newsTitle,
     this.newsUrl,
     this.newsOutlet,
-    this.newsSnippet,
+    this.newsItems = const [],
   });
 
   final String keyword;
@@ -160,17 +160,44 @@ class TrendEntry {
   final String? newsTitle;
   final String? newsUrl;
   final String? newsOutlet;
-  final String? newsSnippet;
+
+  /// 전체 news_item. 언론사 매칭이 안 된 이슈에서도 링크는 남게 한다.
+  final List<TrendNewsItem> newsItems;
 }
 
-/// 뉴스 소스가 뽑아온 헤드라인 한 건.
+/// 뉴스 소스가 뽑아온 기사 한 건.
+///
+/// `summary` 는 피드의 `<description>` 이다. **언론사가 배포 목적으로 넣은 값**이고
+/// 표준 RSS 리더가 그대로 보여주는 값이다. 기사 본문을 긁어오지 않는다.
 class Headline {
-  const Headline({required this.title, required this.rank, this.url});
+  const Headline({
+    required this.title,
+    required this.rank,
+    this.summary,
+    this.url,
+    this.publishedAt,
+  });
 
   final String title;
 
   /// 1부터. 언론사 안에서의 등장 순서 = 편집상 중요도의 근사값.
   final int rank;
 
+  /// 기사 리드. 자르되 문장을 바꾸지 않는다.
+  final String? summary;
+
+  final String? url;
+  final String? publishedAt;
+}
+
+/// 구글 트렌드가 키워드마다 물고 오는 기사 (항목당 3건).
+///
+/// `ht:news_item_snippet` 은 담지 않는다 — 확인해 보니 늘 비어 있다(30건 전부 0자).
+/// 그걸 요약으로 쓰려다 계속 제목으로 폴백해서 "헤드라인만 보인다"는 문제가 났다.
+class TrendNewsItem {
+  const TrendNewsItem({required this.title, this.outlet, this.url});
+
+  final String title;
+  final String? outlet;
   final String? url;
 }

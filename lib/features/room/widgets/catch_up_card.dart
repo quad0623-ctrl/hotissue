@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/models/post.dart';
+import 'news_briefing.dart';
 import '../../../domain/ranking/ranked_issue.dart';
 
 /// "나중에 온 사람" 전용 요약 카드.
@@ -51,7 +52,7 @@ class CatchUpCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            ranked.issue.summary ?? '아직 요약할 만큼 대화가 쌓이지 않았습니다.',
+            ranked.issue.summary ?? '아직 기사가 확인되지 않은 이슈입니다.',
             style: const TextStyle(
               fontSize: 13,
               height: 1.5,
@@ -60,6 +61,14 @@ class CatchUpCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _SourceLine(ranked: ranked),
+          if (ranked.issue.articles.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            // 방에 들어오면 대화 로그보다 먼저 읽히는 자리다.
+            // "나중에 온 사람이 흐름을 따라잡는다"는 이 카드의 원래 목적과 맞는다.
+            NewsBriefing(articles: ranked.issue.articles),
+          ],
           if (top.isNotEmpty) ...[
             const SizedBox(height: 14),
             const Divider(height: 1),

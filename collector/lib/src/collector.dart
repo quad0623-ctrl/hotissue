@@ -73,12 +73,16 @@ class Collector {
         try {
           final list = parseNewsRss(await _fetch(feed));
           // 언론사 안에서 순번을 이어 붙인다. 앞 섹션일수록 상단으로 본다.
+          // **순번 말고는 그대로 옮겨야 한다** — 예전에 여기서 summary 를
+          // 빠뜨려 브리핑의 리드가 통째로 사라졌다.
           for (final h in list) {
             collected.add(
               Headline(
                 title: h.title,
                 rank: collected.length + 1,
+                summary: h.summary,
                 url: h.url,
+                publishedAt: h.publishedAt,
               ),
             );
           }
@@ -110,15 +114,57 @@ class Collector {
         _rank(trendSource.id, entry.rank, previousRanks, now),
       ];
 
+      // 매칭된 기사를 버리지 않고 들고 있는다. 예전에는 위치만 기록하고
+      // 정작 내용이 담긴 리드를 버렸다 — 그래서 방에 헤드라인만 남았다.
+      final articles = <Map<String, dynamic>>[];
+
       for (final outlet in newsSources) {
-        final position = _bestMention(
+        final matched = _bestMention(
           headlines[outlet.id] ?? const [],
           entry.keyword,
           entry.newsTitle,
         );
-        if (position == null) continue;
-        ranks.add(_rank(outlet.id, _newsRank(position), previousRanks, now));
+        if (matched == null) continue;
+
+        ranks
+            .add(_rank(outlet.id, _newsRank(matched.rank), previousRanks, now));
+        articles.add({
+          'outlet': outlet.id,
+          'outlet_label': outlet.label,
+          'title': matched.title,
+          'summary': matched.summary,
+          'url': matched.url,
+          'published_at': matched.publishedAt,
+          'origin': 'rss',
+        });
       }
+
+      // 구글 트렌드가 물고 온 기사도 담는다. 리드는 없지만 언론사와 링크는 있어서
+      // 언론사 매칭이 안 된 이슈에서도 화면이 비지 않는다.
+      for (final n in entry.newsItems) {
+        if (articles.any((a) => a['url'] == n.url)) continue;
+        articles.add({
+          'outlet': null,
+          'outlet_label': n.outlet,
+          'title': n.title,
+          'summary': null,
+          'url': n.url,
+          'published_at': null,
+          'origin': 'trends',
+        });
+      }
+
+      // 리드가 있는 기사를 위로. 그다음은 리드가 긴 순.
+      articles.sort(
+        (a, b) =>
+            '${b['summary'] ?? ''}'.length - '${a['summary'] ?? ''}'.length,
+      );
+      final topArticles = articles.take(6).toList();
+
+      // 가장 충실한 리드를 요약으로 쓴다. 없으면 예전처럼 제목으로 폴백한다.
+      final bestLead = topArticles
+          .map((a) => a['summary'] as String?)
+          .firstWhere((s) => s != null && s.isNotEmpty, orElse: () => null);
 
       final record = previous ??
           IssueRecord(
@@ -132,12 +178,13 @@ class Collector {
       record
         ..ranks = ranks
         ..lastSeenAt = now
-        ..summary = entry.newsSnippet ?? entry.newsTitle ?? record.summary
+        ..summary = bestLead ?? entry.newsTitle ?? record.summary
         ..sourceTitle = entry.newsTitle ?? record.sourceTitle
         ..sourceUrl = entry.newsUrl ?? record.sourceUrl
         ..sourceOutlet = entry.newsOutlet ?? record.sourceOutlet
         ..approxTraffic = entry.approxTraffic ?? record.approxTraffic
         ..imageUrl = entry.imageUrl ?? record.imageUrl
+        ..articles = topArticles
         ..status = _status(previousRanks, ranks, isNew: previous == null);
 
       store.issues[id] = record;
@@ -189,14 +236,16 @@ class Collector {
         'observed_at': now.toUtc().toIso8601String(),
       };
 
-  /// 헤드라인 목록에서 이 사건이 등장하는 가장 앞 위치. 없으면 null.
-  int? _bestMention(
+  /// 이 사건을 다루는 가장 앞선 기사. 없으면 null.
+  ///
+  /// 위치만이 아니라 기사 자체를 돌려준다 — 리드가 브리핑의 본문 공급원이다.
+  Headline? _bestMention(
     List<Headline> headlines,
     String keyword,
     String? storyTitle,
   ) {
     for (final h in headlines) {
-      if (_matcher.matches(h.title, keyword, storyTitle)) return h.rank;
+      if (_matcher.matches(h.title, keyword, storyTitle)) return h;
     }
     return null;
   }

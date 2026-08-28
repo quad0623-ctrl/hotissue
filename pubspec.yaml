@@ -26,6 +26,10 @@ dependencies:
   # 익명 식별자 보관. 계정이 아니라 브라우저 단위 로컬 값이다.
   shared_preferences: ^2.2.0
 
+  # 기사 원문 열기. supabase_flutter 의 전이 의존성이지만
+  # 직접 쓰는 이상 명시해야 한다.
+  url_launcher: ^6.3.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
